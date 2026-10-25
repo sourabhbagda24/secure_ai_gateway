@@ -1,0 +1,9 @@
+[project]
+name = "secure-ai-gateway"
+version = "1.0.0"
+description = "Security-at-every-layer reference implementation for LLM/RAG/agent apps"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

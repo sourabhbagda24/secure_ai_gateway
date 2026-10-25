@@ -1,0 +1,5 @@
+{
+  "examplelib": [
+    {"id": "EXAMPLE-0001", "summary": "illustrative advisory entry (not a real CVE)", "fixed_in": "2.0.1"}
+  ]
+}

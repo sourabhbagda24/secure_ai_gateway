@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Dashboard | Secure AI Gateway</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif;
+      --bg: #0b1020; --panel: #11182a; --panel-2: #0d1424;
+      --border: #27314b; --text: #e8edf8; --muted: #aab6cf;
+      --accent: #526cf5; --allowed: #69e3a5; --blocked: #ff8585; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); }
+    .topnav { background: #0e1525; border-bottom: 1px solid var(--border);
+      display: flex; padding: 0 24px; gap: 4px; position: sticky; top: 0; z-index: 50; }
+    .topnav a { color: var(--muted); text-decoration: none; padding: 14px 22px;
+      font-size: 14px; font-weight: 600; border-bottom: 3px solid transparent; }
+    .topnav a:hover { color: var(--text); background: rgba(82,108,245,0.08); }
+    .topnav a.active { color: var(--text); border-bottom-color: var(--accent); background: rgba(82,108,245,0.12); }
+    header { padding: 26px 24px; border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, #11182a, #0e1525); }
+    header h1 { margin: 0 0 6px; font-size: clamp(22px, 4vw, 28px); }
+    header p { margin: 0; color: var(--muted); font-size: 14px; }
+    main { max-width: 1000px; margin: 30px auto; padding: 0 18px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+    .stat-label { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+    .stat-value { font-size: 28px; font-weight: 700; }
+    .stat-value.green { color: var(--allowed); }
+    .stat-value.red { color: var(--blocked); }
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 22px; margin-bottom: 18px; }
+    .panel h2 { margin: 0 0 16px; font-size: 17px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid var(--border); padding: 10px 14px; text-align: left; font-size: 13.5px; }
+    th { background: var(--panel-2); font-weight: 600; color: #c9d3e8; }
+    .muted { color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+  <nav class="topnav">
+    <a href="/">💬 Chat</a>
+    <a href="/benchmark">📊 Benchmark</a>
+    <a href="/admin" class="active">⚙️ Admin</a>
+  </nav>
+
+  <header>
+    <h1>Admin Dashboard</h1>
+    <p>Live stats from the latest benchmark run</p>
+  </header>
+
+  <main>
+    <div id="loading" class="muted">Loading stats…</div>
+    <div id="content" style="display:none;">
+      <div class="grid" id="stats-grid"></div>
+
+      <div class="panel">
+        <h2>🛡️ Secure Gateway</h2>
+        <table id="secure-table"></table>
+      </div>
+
+      <div class="panel">
+        <h2>⚠️ Insecure Baseline</h2>
+        <table id="baseline-table"></table>
+      </div>
+
+      <div class="panel">
+        <h2>📊 Comparison (Secure − Baseline)</h2>
+        <table id="comparison-table"></table>
+      </div>
+
+      <div class="panel">
+        <h2>🎯 Attack Statistics</h2>
+        <table id="attack-table"></table>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    function pct(x) {
+      return (x === null || x === undefined) ? 'n/a' : (x * 100).toFixed(2) + '%';
+    }
+    function statCard(label, value, colorClass) {
+      return `<div class="stat-card"><div class="stat-label">${label}</div><div class="stat-value ${colorClass}">${value}</div></div>`;
+    }
+    function metricsTable(el, m) {
+      const rows = [
+        ['Attack Success Rate (ASR)', pct(m.asr), m.asr === 0 ? 'green' : 'red'],
+        ['Block Rate', pct(m.block_rate), ''],
+        ['False Positive Rate (FPR)', pct(m.fpr), ''],
+        ['Leakage Rate', pct(m.leakage), m.leakage === 0 ? 'green' : 'red'],
+        ['Authz Accuracy', pct(m.authz_accuracy), ''],
+      ];
+      el.innerHTML = '<tr><th>Metric</th><th>Value</th></tr>' +
+        rows.map(([k, v, c]) => `<tr><td>${k}</td><td style="color:${c === 'green' ? '#69e3a5' : c === 'red' ? '#ff8585' : '#e8edf8'}">${v}</td></tr>`).join('');
+    }
+    async function load() {
+      try {
+        const r = await fetch('/api/admin/stats');
+        const data = await r.json();
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+
+        const grid = document.getElementById('stats-grid');
+        grid.innerHTML =
+          statCard('Total Runs', data.total_runs, '') +
+          statCard('Secure ASR', pct(data.secure.asr), data.secure.asr === 0 ? 'green' : 'red') +
+          statCard('Secure Leakage', pct(data.secure.leakage), data.secure.leakage === 0 ? 'green' : 'red') +
+          statCard('Attacks Neutralized', `${data.attack_stats.neutralized_total}/${data.attack_stats.total}`, 'green');
+
+        metricsTable(document.getElementById('secure-table'), data.secure);
+        metricsTable(document.getElementById('baseline-table'), data.baseline);
+
+        const comp = data.comparison || {};
+        const compRows = Object.entries(comp).map(([k, v]) => {
+          const val = v === null ? 'n/a' : (v >= 0 ? '+' : '') + v.toFixed(4);
+          return `<tr><td>${k}</td><td>${val}</td></tr>`;
+        }).join('');
+        document.getElementById('comparison-table').innerHTML =
+          '<tr><th>Metric</th><th>Delta</th></tr>' + compRows;
+
+        const atk = data.attack_stats;
+        document.getElementById('attack-table').innerHTML = `
+          <tr><th>Stat</th><th>Value</th></tr>
+          <tr><td>Total attack scenarios</td><td>${atk.total}</td></tr>
+          <tr><td>Explicitly blocked by gateway</td><td>${atk.blocked_explicitly}</td></tr>
+          <tr><td>Neutralized (blocked or harmless)</td><td>${atk.neutralized_total}</td></tr>
+          <tr><td>Data leaks</td><td style="color:${atk.leaked === 0 ? '#69e3a5' : '#ff8585'}">${atk.leaked}</td></tr>
+        `;
+      } catch (e) {
+        document.getElementById('loading').textContent = 'Error loading stats: ' + e.message;
+      }
+    }
+    load();
+  </script>
+</body>
+</html>
