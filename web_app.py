@@ -161,6 +161,45 @@ def benchmark_run(run_id: str):
     return {"run_id": run_id, **payload}
 
 
+@app.get("/api/benchmark/run-live", response_class=HTMLResponse)
+def run_live_benchmark():
+    """Trigger a fresh benchmark live via browser."""
+    from benchmarks.security.runner import run_live_benchmark_sync
+    import traceback
+
+    try:
+        run_id = run_live_benchmark_sync()
+        return HTMLResponse(f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Benchmark Complete</title>
+          <style>
+            body {{ font-family: system-ui, sans-serif; max-width: 600px;
+                   margin: 4em auto; padding: 2em; background: #0b1020; color: #e8edf8; }}
+            h1 {{ color: #69e3a5; }}
+            code {{ background: #11182a; padding: 4px 8px; border-radius: 4px; }}
+            a {{ color: #526cf5; }}
+          </style>
+        </head>
+        <body>
+          <h1>✅ Benchmark Complete</h1>
+          <p>Run ID: <code>{run_id}</code></p>
+          <p><a href="/benchmark">View Benchmark Dashboard</a></p>
+          <p><a href="/admin">View Admin Dashboard</a></p>
+        </body>
+        </html>
+        """, media_type="text/html")
+    except Exception:
+        return HTMLResponse(f"""
+        <!DOCTYPE html>
+        <html><body style="font-family: monospace; padding: 2em; background: #0b1020; color: #ff8585;">
+        <h1>❌ Benchmark Failed</h1>
+        <pre>{traceback.format_exc()}</pre>
+        </body></html>
+        """, status_code=500, media_type="text/html")
+
+
 @app.get("/benchmark", response_class=HTMLResponse)
 def benchmark_page():
     from web_app_benchmark_template import render_benchmark_page
